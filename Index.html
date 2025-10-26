@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Share location</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; padding: 24px; max-width:720px; margin:auto; }
+    .card { border:1px solid #ddd; padding:18px; border-radius:8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+    button { padding:10px 16px; font-size:16px; border-radius:6px; cursor:pointer; }
+    pre { background:#f8f8f8; padding:12px; border-radius:6px; overflow:auto; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Share your location (consent required)</h1>
+    <p>
+      This page will request your device's location and share it with the requester.
+      Your IP address will also be recorded automatically by the server when you visit.
+    </p>
+    <p><strong>Purpose:</strong> <span id="purpose">[explain why — e.g., event check-in]</span></p>
+
+  <div style="margin:12px 0;">
+      <button id="shareBtn">Share my location</button>
+    </div>
+
+  <div id="status"></div>
+
+  <h3>Privacy</h3>
+    <p>By tapping "Share my location" you consent to the collection of your approximate location and IP address for the stated purpose. Do not proceed unless you agree.</p>
+
+  <h3>Result (for your records)</h3>
+    <pre id="result">No action yet.</pre>
+  </div>
+
+  <script>
+    const btn = document.getElementById('shareBtn');
+    const status = document.getElementById('status');
+    const result = document.getElementById('result');
+
+    btn.addEventListener('click', async () => {
+      status.textContent = 'Requesting location permission from your browser...';
+      if (!navigator.geolocation) {
+        status.textContent = 'Geolocation not supported by this browser.';
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const data = {
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+          accuracy_m: pos.coords.accuracy,
+          timestamp: new Date(pos.timestamp).toISOString()
+        };
+
+        status.textContent = 'Location obtained. Sending to server with your consent...';
+
+        try {
+          const resp = await fetch('/report', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data),
+            credentials: 'include'
+          });
+          const json = await resp.json();
+          result.textContent = JSON.stringify({server_response: json, submitted: data}, null, 2);
+          status.textContent = 'Thank you — data sent.';
+        } catch (err) {
+          status.textContent = 'Failed to send data to server: ' + err;
+        }
+      }, (err) => {
+        status.textContent = 'Location permission denied or error: ' + err.message;
+      }, {enableHighAccuracy: true, timeout: 15000});
+    });
+  </script>
+</body>
+</html>
